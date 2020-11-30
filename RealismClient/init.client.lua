@@ -417,8 +417,10 @@ function CharacterRealism:MountMaterialSounds(humanoid)
 					local volume = ((speed - 4) / 12) * scale
 					running.Volume = math.clamp(volume, 0, 1)
 					
-					local pitch = oldPitch.Value / ((scale * 15) / speed)
-					running.Pitch = pitch
+					local speedFactor = (speed - 16) / 2 + 16
+					
+					local pitch = oldPitch.Value / ((scale * 15) / speedFactor)
+					running.PlaybackSpeed = pitch
 					
 					RunService.Heartbeat:Wait()
 				end	
