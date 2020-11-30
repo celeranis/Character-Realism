@@ -44,7 +44,6 @@ local REALISM_CONFIG =
 		Basalt  = "Gravel";
 		Asphalt = "Gravel";
 		Glacier = "Gravel";
-		Slate   = "Gravel";
 		
 		WoodPlanks = "Wood";
 		LeafyGrass = "Grass";
@@ -54,6 +53,8 @@ local REALISM_CONFIG =
 		Marble    = "Marble";
 		Pavement  = "Marble";
 		Limestone = "Marble";
+		
+		Slate     = "Concrete";
 		
 		Foil          = "Metal";
 		DiamondPlate  = "Metal";
