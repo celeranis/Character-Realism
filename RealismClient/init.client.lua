@@ -182,7 +182,7 @@ function CharacterRealism:UpdateLookAngles(delta)
 	
 	-- Update all of the character look-angles
 	local camera = workspace.CurrentCamera
-	local origin = camera.CFrame.Position
+	local camPos = camera.CFrame.Position
 	
 	local player = self.Player
 	local dropList
@@ -198,7 +198,7 @@ function CharacterRealism:UpdateLookAngles(delta)
 		end
 		
 		local owner = Players:GetPlayerFromCharacter(character)
-		local dist = owner and owner:DistanceFromCharacter(origin) or 0
+		local dist = owner and owner:DistanceFromCharacter(camPos) or 0
 
 		if owner ~= player and dist > 30 then
 			continue
@@ -235,29 +235,33 @@ function CharacterRealism:UpdateLookAngles(delta)
 			end
 
 			local motor = data.Motor
-			local part0 = motor.Part0
-			
 			local origin = data.Origin
-			local setPart0 = origin and origin.Parent
 			
-			if part0 and part0 ~= setPart0 then
-				local newOrigin = part0:FindFirstChild(origin.Name)
+			if origin then
+				local part0 = motor.Part0
+				local setPart0 = origin.Parent
+				
+				if part0 and part0 ~= setPart0 then
+					local newOrigin = part0:FindFirstChild(origin.Name)
 
-				if newOrigin and newOrigin:IsA("Attachment") then
-					origin = newOrigin
-					data.Origin = newOrigin
+					if newOrigin and newOrigin:IsA("Attachment") then
+						origin = newOrigin
+						data.Origin = newOrigin
+					end
 				end
-			end
-
-			if not origin then
+				
+				origin = origin.CFrame
+			elseif data.C0 then
+				origin = data.C0
+			else
 				continue
 			end
 
 			local pitch = pitchState.Current or 0
 			local yaw = yawState.Current or 0
 
-			if rotator.SnapFirstPerson then
-				if name == "Head" and FpsCamera:IsInFirstPerson() then
+			if rotator.SnapFirstPerson and name == "Head" then
+				if FpsCamera:IsInFirstPerson() then
 					pitch = pitchState.Goal
 					yaw = yawState.Goal
 				end
@@ -267,7 +271,7 @@ function CharacterRealism:UpdateLookAngles(delta)
 			local fYaw = yaw * factors.Yaw
 
 			-- HACK: Make the arms rotate with a tool.
-			if name:sub(-3) == "Arm" then
+			if name:sub(-4) == " Arm" or name:sub(-8) == "UpperArm" then
 				local tool = character:FindFirstChildOfClass("Tool")
 				
 				if tool and not CollectionService:HasTag(tool, "NoArmRotation") then
@@ -293,10 +297,12 @@ function CharacterRealism:UpdateLookAngles(delta)
 			end
 
 			if dirty then
+				local rot = origin - origin.Position
+				
 				local cf = CFrame.Angles(0, fPitch, 0)
-					     * CFrame.Angles(fYaw, 0, 0)
-
-				motor.C0 = origin.CFrame * cf
+				         * CFrame.Angles(fYaw, 0, 0)
+				
+				motor.C0 = origin * rot:Inverse() * cf * rot
 			end
 		end
 	end
@@ -354,8 +360,7 @@ function CharacterRealism:MountLookAngle(humanoid)
 		local player = Players:GetPlayerFromCharacter(character)
 		
 		if player == self.Player then
-			rotator.Pitch.SnapFirstPerson = true
-			rotator.Yaw.SnapFirstPerson = true
+			rotator.SnapFirstPerson = true
 		end
 		
 		-- Register this rotator for the character.
@@ -461,8 +466,13 @@ end
  
 function CharacterRealism:OnHumanoidAdded(humanoid)
 	if humanoid:IsA("Humanoid") then
-		self:MountLookAngle(humanoid)
-		self:MountMaterialSounds(humanoid)
+		if not self.SkipLookAngle then
+			self:MountLookAngle(humanoid)
+		end
+		
+		if not self.SkipMaterialSounds then
+			self:MountMaterialSounds(humanoid)
+		end
 	end
 end
 
@@ -470,14 +480,9 @@ end
 -- This is intended for compatibility with AeroGameFramework modules,
 -- but the function will automatically be called if executed from a LocalScript.
 
-local started = false
-
 function CharacterRealism:Start()
-	if started then
-		return
-	else
-		started = true
-	end
+	assert(not _G.DefineRealismClient, "Realism can only be started once on the client!")
+	_G.DefineRealismClient = true
 	
 	for key, value in pairs(Config) do
 		self[key] = value
@@ -498,6 +503,10 @@ if script:IsA("ModuleScript") then
 	-- Return the system as a module table.
 	return CharacterRealism
 else
+	-- Sanity check
+	assert(script.Parent:IsA("PlayerScripts"), "RealismClient must be parented to the StarterPlayerScripts!")
+	assert(Players.LocalPlayer, "RealismClient expects a Player on the client to automatically start execution!")	
+	
 	-- Start automatically.
 	CharacterRealism:Start()
 end
